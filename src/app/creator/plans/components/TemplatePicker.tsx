@@ -1,7 +1,7 @@
 /** @jsxImportSource react */
 import { Edit3 } from "lucide-react";
-import { TemplateConfig, TemplateKey } from "../../types";
-import { iconMap } from "../constants";
+import { TemplateConfig, TemplateKey } from "./types";              // ← 修正
+import { iconMap } from "./PlanForm/constants";                      // ← 修正
 
 type Props = {
   templates: Record<TemplateKey, TemplateConfig>;

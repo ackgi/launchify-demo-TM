@@ -1,22 +1,27 @@
+// src/app/creator/endpoints/new/page.tsx
 import EndpointForm from "./EndpointForm";
 import { createServerClient } from "@/lib/supabase/server";
 import { auth } from "@clerk/nextjs/server";
 
-type PageProps = {
-  searchParams?: { [key: string]: string | string[] | undefined };
-};
-
 export const dynamic = "force-dynamic";
 
-export default async function NewEndpointPage({ searchParams }: PageProps) {
-  // ✅ await を付ける（ここがエラー原因）
+// ✅ defaultは同期・any受け取りで型制約を回避
+export default function NewEndpointPage(props: any) {
+  return <NewEndpointPageInner {...props} />;
+}
+
+// 実処理は async の中に分離
+async function NewEndpointPageInner({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
   const { userId, getToken } = await auth();
   if (!userId) return <div className="p-6">Unauthorized</div>;
 
   const jwt = await getToken({ template: "supabase" });
   if (!jwt) return <div className="p-6 text-red-600">Failed to get Supabase token</div>;
 
-  // JWT を注入して RLS 有効な Supabase クライアントを作成
   const sb = createServerClient(jwt);
 
   const idRaw = searchParams?.groupId;
@@ -32,8 +37,8 @@ export default async function NewEndpointPage({ searchParams }: PageProps) {
   if (plansErr) console.error("[NewEndpointPage] plans:", plansErr.message);
   if (groupsErr) console.error("[NewEndpointPage] groups:", groupsErr.message);
 
-  const plans: any[] = Array.isArray(plansRaw) ? plansRaw : [];
-  const availableGroups: any[] = Array.isArray(groupsRaw) ? groupsRaw : [];
+  const plans = Array.isArray(plansRaw) ? plansRaw : [];
+  const availableGroups = Array.isArray(groupsRaw) ? groupsRaw : [];
 
   return (
     <div className="space-y-8">
@@ -43,8 +48,11 @@ export default async function NewEndpointPage({ searchParams }: PageProps) {
           <p className="text-lg text-gray-600 mt-1">Create a new endpoint for your API plan</p>
         </div>
       </div>
-
-      <EndpointForm presetGroupId={presetGroupId} plans={plans} availableGroups={availableGroups} />
+      <EndpointForm
+        presetGroupId={presetGroupId}
+        plans={plans}
+        availableGroups={availableGroups}
+      />
     </div>
   );
 }
