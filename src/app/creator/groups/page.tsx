@@ -1,11 +1,11 @@
 // src/app/creator/groups/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { createBrowserClient } from "@/lib/supabase/client";
-import { Plus, Edit, Eye, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2 } from "lucide-react";
 
 import { Button } from "@/app/components/ui/Button";
 import { Card, CardContent } from "@/app/components/ui/Card";
@@ -39,6 +39,7 @@ export default function GroupsIndexPage() {
   const [rows, setRows] = useState<GroupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [q, setQ] = useState(""); // 🔍 検索キーワード
 
   // Clerk JWT を添付した Supabase クライアント
   useEffect(() => {
@@ -108,18 +109,15 @@ export default function GroupsIndexPage() {
     setRows((prev) => prev.filter((x) => x.id !== g.id));
 
     try {
-      const { error, status } = await supabase
+      const { error } = await supabase
         .from("api_endpoint_groups")
         .delete()
         .eq("id", g.id);
 
       if (error) {
-        console.error(`❌ delete group (status ${status}):`, error);
+        console.error("❌ delete group:", error);
         alert(`Failed to delete group: ${error.message ?? "unknown error"}`);
-        // ロールバック
         setRows(snapshot);
-      } else {
-        // 成功: 何もしない（既にUIから消えている）
       }
     } catch (e) {
       console.error("🔥 delete group (exception):", e);
@@ -129,6 +127,16 @@ export default function GroupsIndexPage() {
       setDeletingId(null);
     }
   };
+
+  // 🔍 フィルター処理
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return rows;
+    return rows.filter((r) => {
+      const hay = `${r.group_name ?? ""} ${r.status ?? ""} ${r.auth_type ?? ""}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [rows, q]);
 
   // ---------- UI ----------
   if (loading) {
@@ -148,8 +156,24 @@ export default function GroupsIndexPage() {
         </Button>
       </div>
 
+      {/* 🔍 Search */}
+      <div className="flex items-center gap-3">
+        <label htmlFor="groupSearch" className="sr-only">
+          Search groups
+        </label>
+        <input
+          id="groupSearch"
+          name="search"
+          type="search"
+          placeholder="Search groups…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-full max-w-md border border-gray-300 rounded-lg px-3 py-2"
+        />
+      </div>
+
       {/* Empty state */}
-      {rows.length === 0 ? (
+      {filtered.length === 0 ? (
         <Card className="rounded-2xl">
           <CardContent className="py-20 text-center text-gray-600">
             <div className="text-lg font-medium mb-2">No Endpoint Groups Yet</div>
@@ -171,14 +195,14 @@ export default function GroupsIndexPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((g) => (
+                  {filtered.map((g) => (
                     <tr
                       key={g.id}
                       className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
                       <td className="py-4 px-6">
                         <div className="font-medium text-gray-900">
-                         {g.group_name ?? "(untitled)"}                        
+                          {g.group_name ?? "(untitled)"}
                         </div>
                         {g.description && (
                           <div className="text-sm text-gray-500 truncate max-w-xl">
