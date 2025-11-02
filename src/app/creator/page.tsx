@@ -1,4 +1,4 @@
-//src\app\creator\page.tsx
+// src/app/creator/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -148,6 +148,7 @@ export default function CreatorDashboard() {
     const { error } = await supabase.from("api_endpoint_groups").delete().eq("id", group.id);
 
     if (error) {
+      // ロールバック
       setGroups(snapshot);
       setErrorMsg("Failed to delete group.");
     }
@@ -237,8 +238,7 @@ export default function CreatorDashboard() {
                           />
                           <div>
                             <h3 className="font-medium text-gray-900">
-                              {p.name ?? "(untitled)"}
-                              {/* 👇 userID表示削除（完全非表示） */}
+                              {p.name ?? "(untitled)"}{/* userIDは非表示 */}
                             </h3>
                             {p.description && (
                               <p className="text-sm text-gray-500 truncate max-w-xs">
@@ -288,6 +288,18 @@ export default function CreatorDashboard() {
         <CardContent>
           {loadingPlans ? (
             <p className="text-gray-500 px-4 py-8">Loading plans…</p>
+          ) : plans.length === 0 ? (
+            // ★ Products / Groups と同じ空状態カードに統一
+            <div className="text-center py-12">
+              <Code className="w-8 h-8 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Plans Yet</h3>
+              <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                Create plans to start selling your API.
+              </p>
+              <Button onClick={() => router.push("/creator/plans/new")}>
+                <Plus size={20} className="mr-2" /> Create Plan
+              </Button>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -307,8 +319,7 @@ export default function CreatorDashboard() {
                     return (
                       <tr key={pl.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-4 px-4 font-medium text-gray-900">
-                          {pl.plan_name ?? "(untitled)"}
-                          {/* 👇 userID表示削除（完全非表示） */}
+                          {pl.plan_name ?? "(untitled)"}{/* userIDは非表示 */}
                         </td>
                         <td className="py-4 px-4">{prod?.name ?? "—"}</td>
                         <td className="py-4 px-4">{formatPrice(pl.unit_price)}</td>
