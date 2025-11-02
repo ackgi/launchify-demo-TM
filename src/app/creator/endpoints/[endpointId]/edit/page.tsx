@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader } from "@/app/components/ui/Card";
 
 type PageProps = { params: { endpointId: string } };
 
-// Next.js 15+ Async Dynamic API 対応
-export default async function EditEndpointPage(props: Promise<PageProps>) {
-  const { params } = await props;
+// ✅ Promise<PageProps> → PageProps に修正
+export default async function EditEndpointPage({ params }: PageProps) {
   const endpointId = params.endpointId;
 
   const [{ data: endpoint, error: endpointError }, { data: plans }, { data: groups }] =
