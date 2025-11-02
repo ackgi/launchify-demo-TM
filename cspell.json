@@ -1,0 +1,8 @@
+
+//cspell.json
+{
+  "version": "0.2",
+  "language": "en,ja",
+  "words": ["Supabase", "Launchify", "ilike", "fintech"],
+  "ignorePaths": [".next", "node_modules"]
+}
