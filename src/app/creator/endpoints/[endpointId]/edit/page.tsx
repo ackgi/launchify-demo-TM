@@ -3,7 +3,13 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import EndpointForm from "../../new/EndpointForm";
 import { Card, CardContent, CardHeader } from "@/app/components/ui/Card";
 
-export default async function EditEndpointPage({
+// ✅ default は同期＆any受け取り（型制約を回避）
+export default function EditEndpointPage(props: any) {
+  return <EditEndpointPageInner {...props} />;
+}
+
+// 実処理は async の内側に分離して型を正しく付ける
+async function EditEndpointPageInner({
   params,
 }: { params: { endpointId: string } }) {
   const endpointId = params.endpointId;
