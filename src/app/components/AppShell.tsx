@@ -1,3 +1,4 @@
+//src\app\components\AppShell.tsx
 "use client";
 
 import type { ReactNode } from "react";
@@ -246,22 +247,24 @@ export default function AppShell({ children }: AppShellProps) {
               <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
                 Resources
               </h3>
-              <ul className="space-y-2">
-                <li><Link href="/docs" className="text-gray-600 hover:text-gray-900">Documentation</Link></li>
-                <li><Link href="/support" className="text-gray-600 hover:text-gray-900">Support</Link></li>
-                <li><Link href="/status" className="text-gray-600 hover:text-gray-900">Status</Link></li>
-              </ul>
+                <ul className="space-y-2">
+                  <li><Link href="/docs" prefetch={false} className="text-gray-600 hover:text-gray-900">Documentation</Link></li>
+                  <li><Link href="/support" prefetch={false} className="text-gray-600 hover:text-gray-900">Support</Link></li>
+                  <li><Link href="/status" prefetch={false} className="text-gray-600 hover:text-gray-900">Status</Link></li>
+                </ul>
+
             </div>
 
             <div>
               <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
                 Account
               </h3>
-              <ul className="space-y-2">
-                <li><Link href="/creator" className="text-gray-600 hover:text-gray-900">Creator Dashboard</Link></li>
-                <li><Link href="/buyer" className="text-gray-600 hover:text-gray-900">Browse APIs</Link></li>
-                <li><Link href="/pricing" className="text-gray-600 hover:text-gray-900">Pricing</Link></li>
-              </ul>
+                <ul className="space-y-2">
+                  <li><Link href="/creator" className="text-gray-600 hover:text-gray-900">Creator Dashboard</Link></li>
+                  <li><Link href="/buyer" className="text-gray-600 hover:text-gray-900">Browse APIs</Link></li>
+                  <li><Link href="/pricing" prefetch={false} className="text-gray-600 hover:text-gray-900">Pricing</Link></li>
+                </ul>
+
             </div>
           </div>
 
