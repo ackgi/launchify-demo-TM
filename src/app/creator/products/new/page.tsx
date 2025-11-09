@@ -1,27 +1,42 @@
+// src/app/creator/products/new/page.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { createBrowserClient } from "@/lib/supabase/client";
+import { createClient } from "@supabase/supabase-js"; // 直接クライアントを作る
 import ProductForm, { ProductFormData, ProductStatus } from "../_components/ProductForm";
+
+function createSupabaseWithClerkJWT(token: string) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createClient(url, anon, {
+    global: { headers: { Authorization: `Bearer ${token}` } }, // JWT を必ず渡す
+  });
+}
 
 export default function NewProductPage() {
   const router = useRouter();
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth(); // userId を使う
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
-  const onSubmit = async ({ data, action }: { data: ProductFormData; action: "save" | "publish" | "create-plan" | "draft" }) => {
+  const onSubmit = async ({
+    data,
+    action,
+  }: {
+    data: ProductFormData;
+    action: "save" | "publish" | "create-plan" | "draft";
+  }) => {
     setIsSubmitting(true);
     setDbError(null);
     try {
       const token = await getToken({ template: "supabase" });
-      const supabase = createBrowserClient(token);
+      if (!token) throw new Error("Failed to issue Clerk JWT (template: supabase)");
+      const supabase = createSupabaseWithClerkJWT(token);
 
-      // 「publish」を押したら draft→preview へ昇格させる例（任意）
-      const nextStatus: ProductStatus =
-        action === "publish" ? (data.status === "draft" ? "preview" : data.status) : data.status;
+      // 修正点：DBが pending_public を禁止しているため、上書きせずそのまま保存
+      const nextStatus: ProductStatus = data.status;
 
       const payload = {
         name: data.name,
@@ -34,9 +49,14 @@ export default function NewProductPage() {
         rate_limit_per_min: data.rateLimitPerMin ? parseInt(data.rateLimitPerMin) : null,
         status: nextStatus,
         visibility: data.visibility,
+        created_by: userId ?? null, // RLS通過に必須（auth.jwt()->>'sub' と一致）
       };
 
-      const { data: inserted, error } = await supabase.from("api_products").insert(payload).select("id").single();
+      const { data: inserted, error } = await supabase
+        .from("api_products")
+        .insert(payload)
+        .select("id")
+        .single();
       if (error) throw error;
 
       const newId = inserted?.id as string;

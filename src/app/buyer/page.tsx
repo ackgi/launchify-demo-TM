@@ -11,6 +11,19 @@ import { mockData, currentUser } from "@/data/mockData";
 import { Product } from "@/types";
 
 export default function Page() {
+  // ▼ 一時的に Coming Soon 固定ページを返す
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
+      <h1 className="text-4xl font-bold mb-4">🚀 Coming Soon</h1>
+      <p className="text-gray-600 max-w-md">
+        The Buyer Portal is currently under development.<br />
+        Please check back later.
+      </p>
+    </div>
+  );
+
+  // --- 以下は元のコードを残す（将来再利用のため） ---
+  // eslint-disable-next-line no-unreachable
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [contentTypeFilter, setContentTypeFilter] = useState("");

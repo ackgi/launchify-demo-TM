@@ -1,3 +1,4 @@
+//src/app/creator/products/_components/ProductForm.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,7 +7,17 @@ import { Card, CardContent, CardHeader } from "@/app/components/ui/Card";
 import { Button } from "@/app/components/ui/Button";
 import Badge from "@/app/components/ui/Badge";
 
-export type ProductStatus = "draft" | "preview" | "public" | "deprecated" | "disabled";
+// ▼ 指摘箇所のみ修正：preview を廃止し、pending_public を含めた正式ステータスへ
+export type ProductStatus =
+  | "draft"
+  | "private"
+  | "restricted"
+  | "public"
+  | "live"
+  | "paused"
+  | "deprecated"
+  | "disabled";
+
 export type ProductVisibility = "catalog" | "unlisted" | "invited" | "internal";
 
 export interface ProductRow {
@@ -273,8 +284,9 @@ export default function ProductForm({
                   onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as ProductStatus }))}
                   className="w-full border rounded-lg px-3 py-2 border-gray-300"
                 >
+                  {/* ▼ 指摘点のみ変更："preview" をやめて "pending_public" に */}
                   <option value="draft">draft</option>
-                  <option value="preview">preview</option>
+                  <option value="pending_public">pending_public</option>
                   <option value="public">public</option>
                   <option value="deprecated">deprecated</option>
                   <option value="disabled">disabled</option>
@@ -345,7 +357,9 @@ export default function ProductForm({
                   placeholder="e.g., 60"
                   type="text"
                   value={formData.rateLimitPerMin}
-                  onChange={(e) => setFormData((p) => ({ ...p, rateLimitPerMin: e.target.value.replace(/[^0-9]/g, "") }))}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, rateLimitPerMin: e.target.value.replace(/[^0-9]/g, "") }))
+                  }
                   className="w-full border rounded-lg px-3 py-2 border-gray-300"
                 />
               </div>
