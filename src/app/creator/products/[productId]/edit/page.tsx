@@ -43,14 +43,25 @@ export default function EditProductPage() {
     };
   }, [productId, getToken, router]);
 
-  const onSubmit = async ({ data, action }: { data: ProductFormData; action: "save" | "publish" | "create-plan" | "draft" }) => {
+  const onSubmit = async ({
+    data,
+    action,
+  }: {
+    data: ProductFormData;
+    action: "save" | "publish" | "create-plan" | "draft";
+  }) => {
     setIsSubmitting(true);
     try {
       const token = await getToken({ template: "supabase" });
       const supabase = createBrowserClient(token);
 
+      // ✅ 修正："pending_public" も禁止なので draft のまま維持
       const nextStatus: ProductStatus =
-        action === "publish" ? (data.status === "draft" ? "preview" : data.status) : data.status;
+        action === "publish"
+          ? data.status === "draft"
+            ? "draft"
+            : data.status
+          : data.status;
 
       const payload = {
         name: data.name,
@@ -60,12 +71,17 @@ export default function EditProductPage() {
         thumbnail_url: data.thumbnailUrl || null,
         homepage_url: data.homepageUrl || null,
         service_endpoint_url: data.serviceEndpointUrl || null,
-        rate_limit_per_min: data.rateLimitPerMin ? parseInt(data.rateLimitPerMin) : null,
+        rate_limit_per_min: data.rateLimitPerMin
+          ? parseInt(data.rateLimitPerMin)
+          : null,
         status: nextStatus,
         visibility: data.visibility,
       };
 
-      const { error } = await supabase.from("api_products").update(payload).eq("id", productId);
+      const { error } = await supabase
+        .from("api_products")
+        .update(payload)
+        .eq("id", productId);
       if (error) throw error;
 
       if (action === "create-plan") {
