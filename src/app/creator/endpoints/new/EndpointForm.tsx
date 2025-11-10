@@ -94,16 +94,17 @@ export default function EndpointForm({
 
         <CardContent className="space-y-8">
           {/* Plan / Group */}
-            <EndpointGroupSelector
-              groups={availableGroups}                 // もしくは planGroups を使ってもOK
-              groupId={formData.groupId ?? ""}
-              setGroupId={(v) => set("groupId", v)}
-              errors={errors}
-              pending={pending}
-              // 新規時だけ新規作成ボタンを出したいなら:
-              showNewGroupButton={mode === "new"}
-              onOpenNewGroup={() => setShowNewGroupModal(true)}
-            />
+          <EndpointGroupSelector
+            groups={availableGroups} // もしくは planGroups を使ってもOK
+            groupId={formData.groupId ?? ""}
+            setGroupId={(v) => set("groupId", v)}
+            errors={errors}
+            pending={pending}
+            // 新規時だけ新規作成ボタンを出したいなら:
+            showNewGroupButton={mode === "new"}
+            onOpenNewGroup={() => setShowNewGroupModal(true)}
+          />
+
           {/* Templates（編集でもテンプレから上書きしたいケースがあるため表示のまま） */}
           <section>
             <h3 className="text-lg font-semibold text-gray-900">Quick Templates</h3>
@@ -210,7 +211,7 @@ export default function EndpointForm({
                     aria-label="Set as Primary Endpoint"
                     disabled={pending}
                   />
-                <Star
+                  <Star
                     size={20}
                     className={formData.isPrimary ? "text-yellow-500 fill-current" : "text-gray-400"}
                   />
@@ -261,16 +262,10 @@ export default function EndpointForm({
                 </Button>
               </div>
             ) : (
-              // 新規：既存の3ボタンを維持
+              // 新規：不要な2ボタンを削除し、1ボタンのみ（文言も「Create Endopoint」に変更）
               <div className="flex justify-end gap-3 pt-6 border-t">
-                <Button variant="outline" onClick={() => save("save-and-add")} disabled={pending}>
-                  Create & Add Another
-                </Button>
-                <Button variant="outline" onClick={() => save("save-and-open")} disabled={pending}>
-                  {formData.groupId ? "Create & Open Group" : "Create & Back to List"}
-                </Button>
                 <Button onClick={() => save("save")} disabled={pending}>
-                  Create Endpoint
+                  Create Endopoint
                 </Button>
               </div>
             )}
