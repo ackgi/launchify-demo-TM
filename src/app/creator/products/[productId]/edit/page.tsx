@@ -1,10 +1,15 @@
+//src/app/creator/products/[productId]/edit/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { createBrowserClient } from "@/lib/supabase/client";
-import ProductForm, { ProductFormData, ProductRow, ProductStatus } from "../../_components/ProductForm";
+import ProductForm, {
+  ProductFormData,
+  ProductRow,
+  ProductStatus,
+} from "../../_components/ProductForm";
 import { Loader2 } from "lucide-react";
 
 export default function EditProductPage() {
@@ -48,20 +53,16 @@ export default function EditProductPage() {
     action,
   }: {
     data: ProductFormData;
-    action: "save" | "publish" | "create-plan" | "draft";
+    action: "save" | "publish" | "draft";
   }) => {
     setIsSubmitting(true);
     try {
       const token = await getToken({ template: "supabase" });
       const supabase = createBrowserClient(token);
 
-      // ✅ 修正："pending_public" も禁止なので draft のまま維持
-      const nextStatus: ProductStatus =
-        action === "publish"
-          ? data.status === "draft"
-            ? "draft"
-            : data.status
-          : data.status;
+      // 編集画面では publish を想定しないが、型としては受ける。
+      // draft → publish の強制昇格は行わず、UIの選択値を尊重。
+      const nextStatus: ProductStatus = data.status;
 
       const payload = {
         name: data.name,
@@ -84,11 +85,8 @@ export default function EditProductPage() {
         .eq("id", productId);
       if (error) throw error;
 
-      if (action === "create-plan") {
-        router.push(`/creator/plans/new?productId=${productId}`);
-      } else {
-        router.push("/creator");
-      }
+      // 保存後は一覧へ戻す（必要に応じて refresh 残留に変更可）
+      router.push("/creator");
     } catch (e: any) {
       alert(e?.message ?? "Failed to save product");
     } finally {
@@ -117,7 +115,7 @@ export default function EditProductPage() {
       title="Edit API Product"
       subtitle="Update your API product settings and information"
       ctaLabelPrimary="Save"
-      showCreatePlan
+      // showCreatePlan は完全に削除
     />
   );
 }

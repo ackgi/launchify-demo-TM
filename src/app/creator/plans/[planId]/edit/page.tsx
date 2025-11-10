@@ -18,7 +18,8 @@ export default function EditPlanPage() {
   const { planId } = useParams<{ planId: string }>();
   const router = useRouter();
   const { isSignedIn, getToken } = useAuth();
-  const { isLoaded } = useUser();
+  const { isLoaded, user } = useUser();
+
   const [supabase, setSupabase] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,6 +28,7 @@ export default function EditPlanPage() {
   const [availableGroups, setAvailableGroups] = useState<EndpointGroupLite[]>([]);
   const [existingNames, setExistingNames] = useState<string[]>([]);
 
+  // Supabase (JWT 付き) を用意
   useEffect(() => {
     (async () => {
       if (!isSignedIn) return router.replace("/auth");
@@ -41,43 +43,56 @@ export default function EditPlanPage() {
     })();
   }, [isSignedIn, getToken, router]);
 
+  // プラン・自分のグループ・既存プラン名の取得
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !user?.id) return;
+
     (async () => {
       setLoading(true);
+
+      // プラン本体
       const { data: p } = await supabase
         .from("api_plans")
-        .select("id, product_id, plan_name, status, interval, monthly_quota, unit_price, monthly_cap, minimum_charge, stripe_price_id")
+        .select(
+          "id, product_id, plan_name, status, interval, monthly_quota, unit_price, monthly_cap, minimum_charge, stripe_price_id"
+        )
         .eq("id", planId)
         .maybeSingle();
 
       if (!p) {
         setInitial(null);
         setAvailableGroups([]);
+        setLoading(false);
         return;
       }
 
+      // ✅ 自分が作成したグループのみ（created_by フィルタ）
       const { data: groups } = await supabase
         .from("api_endpoint_groups")
         .select("*")
-        .eq("product_id", p.product_id);
+        .eq("created_by", user.id) // ← ここが肝
+        .order("created_at", { ascending: false });
 
+      // 既にこのプランにリンク済みのグループID
       const { data: pegs } = await supabase
         .from("plan_endpoint_groups")
         .select("group_id")
         .eq("plan_id", planId);
 
       const linkedIds = (pegs ?? []).map((r: any) => r.group_id as string);
+
+      // 同名チェック用：他プランの名前一覧
       const { data: plans } = await supabase.from("api_plans").select("id, plan_name");
       const names = (plans ?? [])
         .filter((x: any) => x.id !== planId)
         .map((x: any) => String(x.plan_name));
-
       setExistingNames(names);
+
+      // UI 用に整形
       setAvailableGroups(
         (groups ?? []).map((g: any) => ({
           id: g.id,
-          name: g.name ?? g.group_name ?? `Group ${g.id.slice(0, 6)}`,
+          name: g.name ?? g.group_name ?? `Group ${String(g.id).slice(0, 6)}`,
           description: g.description ?? "",
           category: g.category ?? "general",
           endpointCount: g.endpoint_count ?? 0,
@@ -96,10 +111,12 @@ export default function EditPlanPage() {
         minimumCharge: p.minimum_charge ?? 0,
         linkedGroups: linkedIds,
       });
+
       setLoading(false);
     })();
-  }, [supabase, planId]);
+  }, [supabase, user?.id, planId]);
 
+  // 保存
   const onSubmit = async (data: PlanFormData) => {
     if (!supabase) return;
     setIsSaving(true);
@@ -116,6 +133,7 @@ export default function EditPlanPage() {
         stripe_price_id: data.stripePriceId,
       })
       .eq("id", planId);
+
     alert("Updated!");
     router.push("/creator/plans");
   };

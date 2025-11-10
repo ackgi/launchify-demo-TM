@@ -9,7 +9,7 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 
 import { Button } from "@/app/components/ui/Button";
 import { Card, CardContent } from "@/app/components/ui/Card";
-import { VerificationBadge } from "@/app/components/common/VerificationBadge";
+import Badge from "@/app/components/ui/Badge";
 
 type GroupRow = {
   id: string;
@@ -30,6 +30,41 @@ function isGroupRowArray(v: unknown): v is GroupRow[] {
   return Array.isArray(v) && v.every((o) => o && typeof o === "object" && "id" in (o as any));
 }
 
+/** Statusピルを描画（VerificationBadge非依存） */
+// 置き換え: Groups/page.tsx 内の renderGroupStatusPill
+function renderGroupStatusPill(s: string | null | undefined) {
+  const v = (s ?? "unknown").toLowerCase();
+
+  let variant: "success" | "warning" | "neutral" | "error" | "info" = "neutral";
+  switch (v) {
+    case "public":
+    case "live":
+      variant = "success";
+      break;
+    case "pending_public":
+    case "private":
+    case "restricted":
+    case "paused":
+      variant = "warning";
+      break;
+    case "deprecated":
+    case "disabled":
+      variant = "error"; // ← ここを danger ではなく error に
+      break;
+    case "draft":
+    default:
+      variant = "neutral";
+      break;
+  }
+
+  return (
+    <Badge variant={variant} size="sm" className="capitalize">
+      {v}
+    </Badge>
+  );
+}
+
+
 export default function GroupsIndexPage() {
   const router = useRouter();
   const { getToken, isLoaded } = useAuth();
@@ -39,9 +74,9 @@ export default function GroupsIndexPage() {
   const [rows, setRows] = useState<GroupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [q, setQ] = useState(""); // 🔍 検索キーワード
+  const [q, setQ] = useState("");
 
-  // Clerk JWT を添付した Supabase クライアント
+  // Clerk JWT を添付した Supabase クライアント作成
   useEffect(() => {
     if (!isLoaded) return;
     (async () => {
@@ -98,14 +133,13 @@ export default function GroupsIndexPage() {
     };
   }, [supabase, user?.id]);
 
-  // 行削除（楽観的 UI + 失敗時ロールバック）
+  // 行削除（楽観的UI）
   const handleDelete = async (g: GroupRow) => {
     const ok = confirm(`Delete group "${g.group_name ?? "(untitled)"}"?`);
     if (!ok || !supabase) return;
 
-    const snapshot = rows; // ロールバック用
+    const snapshot = rows;
     setDeletingId(g.id);
-    // 楽観的にUIから消す
     setRows((prev) => prev.filter((x) => x.id !== g.id));
 
     try {
@@ -138,7 +172,6 @@ export default function GroupsIndexPage() {
     });
   }, [rows, q]);
 
-  // ---------- UI ----------
   if (loading) {
     return <div className="text-center py-16 text-gray-500">Loading groups…</div>;
   }
@@ -149,14 +182,13 @@ export default function GroupsIndexPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Your API Endpoint Groups</h1>
-          <p className="text-gray-600">Manage your endpoint groups and their settings</p>
         </div>
         <Button onClick={() => router.push("/creator/groups/new")} size="sm">
           <Plus size={16} className="mr-2" /> New Group
         </Button>
       </div>
 
-      {/* 🔍 Search */}
+      {/* Search */}
       <div className="flex items-center gap-3">
         <label htmlFor="groupSearch" className="sr-only">
           Search groups
@@ -172,7 +204,7 @@ export default function GroupsIndexPage() {
         />
       </div>
 
-      {/* Empty state */}
+      {/* List */}
       {filtered.length === 0 ? (
         <Card className="rounded-2xl">
           <CardContent className="py-20 text-center text-gray-600">
@@ -213,12 +245,8 @@ export default function GroupsIndexPage() {
 
                       <td className="py-4 px-6">{g.plan_id ?? "—"}</td>
 
-                      <td className="py-4 px-6">
-                        <VerificationBadge
-                          status={(g.status as any) || "success"}
-                          lastChecked={new Date(g.created_at).toISOString()}
-                        />
-                      </td>
+                      {/* ✅ 自前のピル表示 */}
+                      <td className="py-4 px-6">{renderGroupStatusPill(g.status)}</td>
 
                       <td className="py-4 px-6">{g.auth_type ?? "none"}</td>
 

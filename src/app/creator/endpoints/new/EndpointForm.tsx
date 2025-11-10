@@ -11,25 +11,50 @@ import type { HttpMethod, EpStatus } from "./types";
 import EndpointTemplates from "./form/EndpointTemplates";
 import AdvancedConfig from "./form/AdvancedConfig";
 import TestPanel from "./form/TestPanel";
-import PlanGroupSelector from "./form/PlanGroupSelector";
+import EndpointGroupSelector from "./form/EndpointGroupSelector";
 import NewGroupModal from "./form/NewGroupModal";
 import { useEndpointForm } from "./form/useEndpointForm";
 
 type Props = {
+  /** "new" のままでも使えますが、編集画面では必ず "edit" を渡してください */
+  mode: "new" | "edit";
   presetGroupId: string;
   plans: any[];
   availableGroups: any[];
+  /** initialData がある場合は useEndpointForm 側で update 挙動に切替わる想定 */
   initialData?: any;
+  /** 編集画面の Cancel で戻したい場所をハンドルします（/creator/endpoints 推奨） */
+  onCancel?: () => void;
 };
 
-export default function EndpointForm({ presetGroupId, plans, availableGroups, initialData }: Props) {
+export default function EndpointForm({
+  mode,
+  presetGroupId,
+  plans,
+  availableGroups,
+  initialData,
+  onCancel,
+}: Props) {
   const router = useRouter();
   const {
-    pending, showAdvanced, setShowAdvanced,
-    showNewGroupModal, setShowNewGroupModal, newGroupName, setNewGroupName,
-    errors, testResult, formData, set,
-    selectedPlan, selectedGroup, planGroups, getFullUrl,
-    createGroup, testEndpoint, save,
+    pending,
+    showAdvanced,
+    setShowAdvanced,
+    showNewGroupModal,
+    setShowNewGroupModal,
+    newGroupName,
+    setNewGroupName,
+    errors,
+    testResult,
+    formData,
+    set,
+    selectedPlan,
+    selectedGroup,
+    planGroups,
+    getFullUrl,
+    createGroup,
+    testEndpoint,
+    save,
   } = useEndpointForm(presetGroupId, plans, availableGroups, initialData);
 
   const onTemplate = (tpl: any) => {
@@ -41,8 +66,15 @@ export default function EndpointForm({ presetGroupId, plans, availableGroups, in
     set("outputSchema", tpl.outputSchema ?? "");
   };
 
+  const title = mode === "edit" ? "Edit Endpoint" : "Create";
+  const subtitle =
+    mode === "edit"
+      ? "Update your endpoint details and behavior"
+      : "Fill the form to create an endpoint";
+
   return (
     <div className="space-y-8">
+      {/* 上部の戻るボタンはそのまま維持（任意） */}
       <div className="flex items-center gap-4">
         <Button
           variant="outline"
@@ -56,27 +88,23 @@ export default function EndpointForm({ presetGroupId, plans, availableGroups, in
 
       <Card>
         <CardHeader>
-          <h2 className="text-xl font-semibold text-gray-900">Create</h2>
-          <p className="text-gray-600">Fill the form to create an endpoint</p>
+          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+          <p className="text-gray-600">{subtitle}</p>
         </CardHeader>
 
         <CardContent className="space-y-8">
           {/* Plan / Group */}
-          <PlanGroupSelector
-            plans={plans}
-            planId={formData.planId ?? ""}
-            setPlanId={(v) => set("planId", v)}
-            groups={planGroups}
-            groupId={formData.groupId}
-            setGroupId={(v) => set("groupId", v)}
-            errors={errors}
-            pending={pending}
-            selectedPlan={selectedPlan}
-            selectedGroup={selectedGroup}
-            onOpenNewGroup={() => setShowNewGroupModal(true)}
-          />
-
-          {/* Templates */}
+            <EndpointGroupSelector
+              groups={availableGroups}                 // もしくは planGroups を使ってもOK
+              groupId={formData.groupId ?? ""}
+              setGroupId={(v) => set("groupId", v)}
+              errors={errors}
+              pending={pending}
+              // 新規時だけ新規作成ボタンを出したいなら:
+              showNewGroupButton={mode === "new"}
+              onOpenNewGroup={() => setShowNewGroupModal(true)}
+            />
+          {/* Templates（編集でもテンプレから上書きしたいケースがあるため表示のまま） */}
           <section>
             <h3 className="text-lg font-semibold text-gray-900">Quick Templates</h3>
             <p className="text-sm text-gray-600 mb-3">Start with a common endpoint pattern</p>
@@ -108,9 +136,10 @@ export default function EndpointForm({ presetGroupId, plans, availableGroups, in
                   onChange={(e) => set("method", e.target.value as HttpMethod)}
                   disabled={pending}
                 >
-                  {/* DBの http_method_enum に合わせる（HEAD/OPTIONSは除外が安全） */}
                   {["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => (
-                    <option key={m} value={m}>{m}</option>
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
                   ))}
                 </Select>
               </Field>
@@ -161,7 +190,7 @@ export default function EndpointForm({ presetGroupId, plans, availableGroups, in
                     // 必要に応じて enum に存在する値のみ追加（public/deprecated/disabled 等）
                   ].map((s) => (
                     <option key={s} value={s}>
-                      {s.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
+                      {s.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                     </option>
                   ))}
                 </Select>
@@ -181,7 +210,7 @@ export default function EndpointForm({ presetGroupId, plans, availableGroups, in
                     aria-label="Set as Primary Endpoint"
                     disabled={pending}
                   />
-                  <Star
+                <Star
                     size={20}
                     className={formData.isPrimary ? "text-yellow-500 fill-current" : "text-gray-400"}
                   />
@@ -204,7 +233,7 @@ export default function EndpointForm({ presetGroupId, plans, availableGroups, in
             />
 
             <TestPanel
-              fullUrl={getFullUrl()}  // フック側で http 始まりはそのまま返す実装に
+              fullUrl={getFullUrl()} // フック側で http 始まりはそのまま返す実装に
               onTest={testEndpoint}
               pending={pending}
               result={testResult}
@@ -216,15 +245,35 @@ export default function EndpointForm({ presetGroupId, plans, availableGroups, in
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-6 border-t">
-              <Button variant="outline" onClick={() => save("save-and-add")} disabled={pending}>
-                Create & Add Another
-              </Button>
-              <Button variant="outline" onClick={() => save("save-and-open")} disabled={pending}>
-                {formData.groupId ? "Create & Open Group" : "Create & Back to List"}
-              </Button>
-              <Button onClick={() => save("save")} disabled={pending}>Create Endpoint</Button>
-            </div>
+            {/* ===== Actions: モードで分岐 ===== */}
+            {mode === "edit" ? (
+              // 編集：Cancel｜Save の2つのみ
+              <div className="flex justify-end gap-3 pt-6 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => (onCancel ? onCancel() : router.push("/creator/endpoints"))}
+                  disabled={pending}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={() => save("save")} disabled={pending}>
+                  {pending ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            ) : (
+              // 新規：既存の3ボタンを維持
+              <div className="flex justify-end gap-3 pt-6 border-t">
+                <Button variant="outline" onClick={() => save("save-and-add")} disabled={pending}>
+                  Create & Add Another
+                </Button>
+                <Button variant="outline" onClick={() => save("save-and-open")} disabled={pending}>
+                  {formData.groupId ? "Create & Open Group" : "Create & Back to List"}
+                </Button>
+                <Button onClick={() => save("save")} disabled={pending}>
+                  Create Endpoint
+                </Button>
+              </div>
+            )}
           </section>
         </CardContent>
       </Card>

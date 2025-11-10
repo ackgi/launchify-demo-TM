@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader } from "@/app/components/ui/Card";
 import { Button } from "@/app/components/ui/Button";
 import Badge from "@/app/components/ui/Badge";
 
-// ▼ 指摘箇所のみ修正：preview を廃止し、pending_public を含めた正式ステータスへ
+// ▼ preview を廃止し、pending_public を含めた正式ステータスへ
 export type ProductStatus =
   | "draft"
+  | "pending_public"
   | "private"
   | "restricted"
   | "public"
@@ -53,7 +54,8 @@ export interface ProductFormData {
   visibility: ProductVisibility;
 }
 
-type Action = "save" | "publish" | "create-plan" | "draft";
+// 不要な "create-plan" を削除
+type Action = "save" | "publish" | "draft";
 
 export type ProductFormProps = {
   mode: "new" | "edit";
@@ -67,7 +69,6 @@ export type ProductFormProps = {
   title?: string;
   subtitle?: string;
   ctaLabelPrimary?: string; // 例: Save / Create Product
-  showCreatePlan?: boolean; // newのときだけ true を推奨
 };
 
 export default function ProductForm({
@@ -81,7 +82,6 @@ export default function ProductForm({
     ? "Create a new API product for the marketplace"
     : "Update your API product settings and information",
   ctaLabelPrimary = mode === "new" ? "Create Product" : "Save",
-  showCreatePlan = mode === "new",
 }: ProductFormProps) {
   const stockImages = useMemo(
     () => [
@@ -103,7 +103,8 @@ export default function ProductForm({
     thumbnailUrl: initial?.thumbnail_url ?? "",
     homepageUrl: initial?.homepage_url ?? "",
     serviceEndpointUrl: initial?.service_endpoint_url ?? "",
-    rateLimitPerMin: initial?.rate_limit_per_min != null ? String(initial?.rate_limit_per_min) : "",
+    rateLimitPerMin:
+      initial?.rate_limit_per_min != null ? String(initial?.rate_limit_per_min) : "",
     status: (initial?.status as ProductStatus) ?? "draft",
     visibility: (initial?.visibility as ProductVisibility) ?? "catalog",
   });
@@ -120,7 +121,8 @@ export default function ProductForm({
       formData.serviceEndpointUrl !== (initial?.service_endpoint_url ?? "") ||
       formData.status !== ((initial?.status as ProductStatus) ?? "draft") ||
       formData.visibility !== ((initial?.visibility as ProductVisibility) ?? "catalog") ||
-      formData.rateLimitPerMin !== (initial?.rate_limit_per_min != null ? String(initial?.rate_limit_per_min) : "");
+      formData.rateLimitPerMin !==
+        (initial?.rate_limit_per_min != null ? String(initial?.rate_limit_per_min) : "");
     setHasChanges(changed);
   }, [formData, initial]);
 
@@ -138,7 +140,8 @@ export default function ProductForm({
     if (formData.serviceEndpointUrl && !formData.serviceEndpointUrl.startsWith("https://")) {
       e.serviceEndpointUrl = "Service endpoint URL must start with https://";
     }
-    if (formData.status === "public" && !formData.slug.trim()) e.slug = "Slug is required for public products";
+    if (formData.status === "public" && !formData.slug.trim())
+      e.slug = "Slug is required for public products";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -177,11 +180,17 @@ export default function ProductForm({
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-                className={`w-full border rounded-lg px-3 py-2 ${errors.name ? "border-red-300" : "border-gray-300"}`}
+                className={`w-full border rounded-lg px-3 py-2 ${
+                  errors.name ? "border-red-300" : "border-gray-300"
+                }`}
                 aria-invalid={!!errors.name || undefined}
                 aria-describedby={errors.name ? "error-name" : undefined}
               />
-              {errors.name && <p id="error-name" className="text-sm text-red-600">{errors.name}</p>}
+              {errors.name && (
+                <p id="error-name" className="text-sm text-red-600">
+                  {errors.name}
+                </p>
+              )}
 
               <label htmlFor="productDescription" className="block text-sm font-medium text-gray-700 mb-1">
                 Description
@@ -193,7 +202,9 @@ export default function ProductForm({
                 rows={4}
                 value={formData.description}
                 onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-                className={`w-full border rounded-lg px-3 py-2 ${errors.description ? "border-red-300" : "border-gray-300"}`}
+                className={`w-full border rounded-lg px-3 py-2 ${
+                  errors.description ? "border-red-300" : "border-gray-300"
+                }`}
               />
 
               <label htmlFor="serviceEndpointUrl" className="block text-sm font-medium text-gray-700 mb-1">
@@ -205,13 +216,19 @@ export default function ProductForm({
                 placeholder="https://api.launchify.dev/v1/endpoint"
                 type="url"
                 value={formData.serviceEndpointUrl}
-                onChange={(e) => setFormData((p) => ({ ...p, serviceEndpointUrl: e.target.value }))}
-                className={`w-full border rounded-lg px-3 py-2 ${errors.serviceEndpointUrl ? "border-red-300" : "border-gray-300"}`}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, serviceEndpointUrl: e.target.value }))
+                }
+                className={`w-full border rounded-lg px-3 py-2 ${
+                  errors.serviceEndpointUrl ? "border-red-300" : "border-gray-300"
+                }`}
                 aria-invalid={!!errors.serviceEndpointUrl || undefined}
                 aria-describedby={errors.serviceEndpointUrl ? "error-service-url" : undefined}
               />
               {errors.serviceEndpointUrl && (
-                <p id="error-service-url" className="text-sm text-red-600">{errors.serviceEndpointUrl}</p>
+                <p id="error-service-url" className="text-sm text-red-600">
+                  {errors.serviceEndpointUrl}
+                </p>
               )}
 
               <label htmlFor="homepageUrl" className="block text-sm font-medium text-gray-700 mb-1">
@@ -261,11 +278,17 @@ export default function ProductForm({
                 type="url"
                 value={formData.thumbnailUrl}
                 onChange={(e) => setFormData((p) => ({ ...p, thumbnailUrl: e.target.value }))}
-                className={`w-full border rounded-lg px-3 py-2 ${errors.thumbnailUrl ? "border-red-300" : "border-gray-300"}`}
+                className={`w-full border rounded-lg px-3 py-2 ${
+                  errors.thumbnailUrl ? "border-red-300" : "border-gray-300"
+                }`}
                 aria-invalid={!!errors.thumbnailUrl || undefined}
                 aria-describedby={errors.thumbnailUrl ? "error-thumb" : undefined}
               />
-              {errors.thumbnailUrl && <p id="error-thumb" className="text-sm text-red-600">{errors.thumbnailUrl}</p>}
+              {errors.thumbnailUrl && (
+                <p id="error-thumb" className="text-sm text-red-600">
+                  {errors.thumbnailUrl}
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -276,15 +299,18 @@ export default function ProductForm({
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
                 <select
                   id="status"
                   name="status"
                   value={formData.status}
-                  onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as ProductStatus }))}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, status: e.target.value as ProductStatus }))
+                  }
                   className="w-full border rounded-lg px-3 py-2 border-gray-300"
                 >
-                  {/* ▼ 指摘点のみ変更："preview" をやめて "pending_public" に */}
                   <option value="draft">draft</option>
                   <option value="pending_public">pending_public</option>
                   <option value="public">public</option>
@@ -294,12 +320,16 @@ export default function ProductForm({
               </div>
 
               <div>
-                <label htmlFor="visibility" className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+                <label htmlFor="visibility" className="block text-sm font-medium text-gray-700 mb-1">
+                  Visibility
+                </label>
                 <select
                   id="visibility"
                   name="visibility"
                   value={formData.visibility}
-                  onChange={(e) => setFormData((p) => ({ ...p, visibility: e.target.value as ProductVisibility }))}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, visibility: e.target.value as ProductVisibility }))
+                  }
                   className="w-full border rounded-lg px-3 py-2 border-gray-300"
                 >
                   <option value="catalog">catalog</option>
@@ -321,11 +351,17 @@ export default function ProductForm({
                     type="text"
                     value={formData.slug}
                     onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
-                    className={`w-full border rounded-lg px-3 py-2 ${errors.slug ? "border-red-300" : "border-gray-300"}`}
+                    className={`w-full border rounded-lg px-3 py-2 ${
+                      errors.slug ? "border-red-300" : "border-gray-300"
+                    }`}
                     aria-invalid={!!errors.slug || undefined}
                     aria-describedby={errors.slug ? "error-slug" : undefined}
                   />
-                  {errors.slug && <p id="error-slug" className="text-sm text-red-600">{errors.slug}</p>}
+                  {errors.slug && (
+                    <p id="error-slug" className="text-sm text-red-600">
+                      {errors.slug}
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-gray-500">
                     URL: /buyer/products/{formData.slug || "creator/product-name"}
                   </p>
@@ -333,7 +369,9 @@ export default function ProductForm({
               )}
 
               <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
                 <input
                   id="category"
                   name="category"
@@ -358,7 +396,10 @@ export default function ProductForm({
                   type="text"
                   value={formData.rateLimitPerMin}
                   onChange={(e) =>
-                    setFormData((p) => ({ ...p, rateLimitPerMin: e.target.value.replace(/[^0-9]/g, "") }))
+                    setFormData((p) => ({
+                      ...p,
+                      rateLimitPerMin: e.target.value.replace(/[^0-9]/g, ""),
+                    }))
                   }
                   className="w-full border rounded-lg px-3 py-2 border-gray-300"
                 />
@@ -376,13 +417,21 @@ export default function ProductForm({
             <CardContent>
               {formData.thumbnailUrl && (
                 <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
-                  <img src={formData.thumbnailUrl} alt="Preview thumbnail" className="w-full h-full object-cover" />
+                  <img
+                    src={formData.thumbnailUrl}
+                    alt="Preview thumbnail"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               )}
               <h4 className="font-semibold">{formData.name || "Product Name"}</h4>
-              <p className="text-sm text-gray-600">{formData.description || "Description..."}</p>
+              <p className="text-sm text-gray-600">
+                {formData.description || "Description..."}
+              </p>
               <div className="mt-3 flex items-center gap-2">
-                <Badge variant={formData.status === "public" ? "success" : "neutral"}>{formData.status}</Badge>
+                <Badge variant={formData.status === "public" ? "success" : "neutral"}>
+                  {formData.status}
+                </Badge>
                 <Badge variant="info">{formData.visibility}</Badge>
                 {hasChanges && <Badge variant="warning">modified</Badge>}
               </div>
@@ -392,24 +441,21 @@ export default function ProductForm({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-6 border-t">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+      <div className="flex items-center justify-end pt-6 border-t">
         <div className="flex items-center gap-3">
-          {mode === "edit" && (
-            <Button variant="outline" onClick={() => handle("save")} disabled={isSubmitting || !hasChanges}>
-              <Save size={16} className="mr-2" /> {isSubmitting ? "Saving..." : "Save"}
-            </Button>
-          )}
-          {showCreatePlan && (
-            <Button variant="outline" onClick={() => handle("create-plan")} disabled={isSubmitting}>
-              Create &amp; Add Plan
-            </Button>
-          )}
-          <Button onClick={() => handle(mode === "new" ? "publish" : "save")} disabled={isSubmitting}>
+          {/* 左：Cancel、右：Save の2つだけ */}
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handle(mode === "new" ? "publish" : "save")}
+            disabled={isSubmitting || (mode === "edit" && !hasChanges)}
+          >
             {isSubmitting ? (mode === "new" ? "Creating..." : "Saving...") : ctaLabelPrimary}
           </Button>
         </div>
       </div>
+
     </div>
   );
 }

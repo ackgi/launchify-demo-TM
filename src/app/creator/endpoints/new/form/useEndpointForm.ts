@@ -5,7 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { EndpointFormData, TestResult } from "../types";
-import { createEndpointAction, createGroupAction, testEndpointAction } from "../actions";
+import {
+  createEndpointAction,
+  createGroupAction,
+  testEndpointAction,
+  // ★ 追加：編集（更新）用アクション
+  updateEndpointAction,
+} from "../actions";
 
 type SaveMode = "save" | "save-and-open" | "save-and-add";
 
@@ -34,13 +40,13 @@ export function useEndpointForm(
     groupId: (presetGroupId || initialData?.group_id || "") as string,
     endpoint_name: initialData?.endpoint_name ?? initialData?.name ?? "",
     path: initialData?.path ?? "",
-    method: (initialData?.method ?? "GET"),
-    status: (initialData?.status ?? "draft"),
+    method: initialData?.method ?? "GET",
+    status: initialData?.status ?? "draft",
     isPrimary: Boolean(initialData?.is_primary),
     description: initialData?.description ?? "",
     inputSchema: initialData?.input_schema ? JSON.stringify(initialData.input_schema, null, 2) : "",
     outputSchema: initialData?.output_schema ? JSON.stringify(initialData.output_schema, null, 2) : "",
-    visibility: (initialData?.visibility ?? "catalog"),
+    visibility: initialData?.visibility ?? "catalog",
   };
 
   const [formData, setFormData] = useState<EndpointFormData>(initialForm);
@@ -77,8 +83,8 @@ export function useEndpointForm(
 
   const getFullUrl = useCallback(() => {
     const base =
-      selectedPlan?.executionUrl ??
-      selectedPlan?.service_endpoint_url ??
+      (selectedPlan as any)?.executionUrl ??
+      (selectedPlan as any)?.service_endpoint_url ??
       "";
     if (!base || !formData.path) return "";
     return `${base}${formData.path}`;
@@ -117,8 +123,8 @@ export function useEndpointForm(
   /** 疎通テスト */
   const testEndpoint = useCallback(async () => {
     const base =
-      selectedPlan?.executionUrl ??
-      selectedPlan?.service_endpoint_url ??
+      (selectedPlan as any)?.executionUrl ??
+      (selectedPlan as any)?.service_endpoint_url ??
       "";
 
     if (!base || !formData.path) {
@@ -143,65 +149,75 @@ export function useEndpointForm(
     }
   }, [formData.method, formData.path, selectedPlan]);
 
-  /** 保存 */
-  /** 保存 */
-const save = useCallback(
-  async (mode: SaveMode) => {
-    setPending(true);
-    setErrors({});
-    try {
-      const payload: EndpointFormData = {
-        ...formData,
-        planId: formData.planId ?? "",
-        groupId: formData.groupId ?? "",
-        endpoint_name: formData.endpoint_name ?? "",
-        path: formData.path ?? "",
-        description: formData.description ?? "",
-        inputSchema: formData.inputSchema ?? "",
-        outputSchema: formData.outputSchema ?? "",
-        status: formData.status ?? "draft", // ✅ ← これを追加
-      };
+  /** 保存（新規⇔編集を切替） */
+  const save = useCallback(
+    async (mode: SaveMode) => {
+      setPending(true);
+      setErrors({});
+      try {
+        const payload: EndpointFormData = {
+          ...formData,
+          planId: formData.planId ?? "",
+          groupId: formData.groupId ?? "",
+          endpoint_name: formData.endpoint_name ?? "",
+          path: formData.path ?? "",
+          description: formData.description ?? "",
+          inputSchema: formData.inputSchema ?? "",
+          outputSchema: formData.outputSchema ?? "",
+          status: formData.status ?? "draft",
+        };
 
-      const res = await createEndpointAction(payload);
-      if (!("ok" in res) || !res.ok) {
-        const fieldErrors = (res as any).fieldErrors ?? {};
-        const message = (res as any).message ? { form: [(res as any).message] } : {};
-        setErrors({ ...fieldErrors, ...message });
-        return;
-      }
-
-      if (mode === "save-and-add") {
-        // 入力リセット
-        setFormData((prev) => ({
-          ...prev,
-          endpoint_name: "",
-          path: "",
-          description: "",
-          inputSchema: "",
-          outputSchema: "",
-          isPrimary: false,
-          status: "draft",
-        }));
-        router.refresh();
-        return;
-      }
-
-      if (mode === "save-and-open") {
-        if (formData.groupId) {
-          router.push(`/creator/groups/${encodeURIComponent(formData.groupId)}/endpoints`);
+        // ★ 分岐：編集なら update、なければ create
+        let res: any;
+        if (initialData?.id) {
+          // 既存レコードの更新
+          // updateEndpointAction の引数はプロジェクト実装に合わせてください
+          res = await updateEndpointAction(initialData.id as string, payload);
         } else {
-          router.push("/creator/endpoints");
+          // 新規作成
+          res = await createEndpointAction(payload);
         }
-        return;
-      }
 
-      router.push("/creator/endpoints");
-    } finally {
-      setPending(false);
-    }
-  },
-  [formData, router]
-);
+        if (!("ok" in res) || !res.ok) {
+          const fieldErrors = (res as any).fieldErrors ?? {};
+          const message = (res as any).message ? { form: [(res as any).message] } : {};
+          setErrors({ ...fieldErrors, ...message });
+          return;
+        }
+
+        if (!initialData?.id && mode === "save-and-add") {
+          // 新規作成時のみ：追加入力のためにフォームをリセット
+          setFormData((prev) => ({
+            ...prev,
+            endpoint_name: "",
+            path: "",
+            description: "",
+            inputSchema: "",
+            outputSchema: "",
+            isPrimary: false,
+            status: "draft",
+          }));
+          router.refresh();
+          return;
+        }
+
+        if (!initialData?.id && mode === "save-and-open") {
+          if (formData.groupId) {
+            router.push(`/creator/groups/${encodeURIComponent(formData.groupId)}/endpoints`);
+          } else {
+            router.push("/creator/endpoints");
+          }
+          return;
+        }
+
+        // 既定：一覧へ戻す（編集時も新規時もここに落とせばOK）
+        router.push("/creator/endpoints");
+      } finally {
+        setPending(false);
+      }
+    },
+    [formData, router, initialData?.id]
+  );
 
   return {
     // state

@@ -5,12 +5,10 @@ import { auth } from "@clerk/nextjs/server";
 
 export const dynamic = "force-dynamic";
 
-// ✅ defaultは同期・any受け取りで型制約を回避
 export default function NewEndpointPage(props: any) {
   return <NewEndpointPageInner {...props} />;
 }
 
-// 実処理は async の中に分離
 async function NewEndpointPageInner({
   searchParams,
 }: {
@@ -49,6 +47,7 @@ async function NewEndpointPageInner({
         </div>
       </div>
       <EndpointForm
+        mode="new" // ✅ 追加：Propsに必要なmodeを明示的に渡す
         presetGroupId={presetGroupId}
         plans={plans}
         availableGroups={availableGroups}

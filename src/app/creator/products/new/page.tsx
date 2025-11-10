@@ -82,7 +82,6 @@ export default function NewProductPage() {
       title="New API Product"
       subtitle="Create a new API product for the marketplace"
       ctaLabelPrimary="Create Product"
-      showCreatePlan
     />
   );
 }
