@@ -1,7 +1,7 @@
 // src/app/creator/endpoints/AllEndpointsClient.tsx
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/app/components/ui/Button";
@@ -37,43 +37,58 @@ export default function AllEndpointsClient({ endpoints, groups, products }: Prop
     return { success: ok, status: ok ? 200 : 500, latency, response: ok ? '{"status":"ok"}' : '{"error":"failed"}' };
   };
 
-// ✅ Promise<void> を返すように変更
-const handleDelete = async (id: string): Promise<void> => {
-  if (!id) return;
-  if (!confirm("Delete this endpoint? This cannot be undone.")) return;
+  // 単体削除
+  const handleDelete = useCallback(
+    async (id: string): Promise<void> => {
+      if (!id || isPending || deletingId) return;
+      if (!confirm("Delete this endpoint? This cannot be undone.")) return;
 
-  setDeletingId(id);
-  await new Promise<void>((resolve) =>
-    startTransition(async () => {
-      const res = await deleteEndpointAction(id);
-      setDeletingId(null);
-      if (!res.ok) alert(res.message || "Failed to delete");
-      else router.refresh();
-      resolve(); // ← 明示的にPromise解決
-    })
-  );
-};
-// ✅ bulkDelete も同様に
-const bulkDelete = async (): Promise<void> => {
-  if (selected.length === 0) return;
-  if (!confirm(`Delete ${selected.length} endpoints?`)) return;
-
-  setDeletingId("__bulk__");
-  await new Promise<void>((resolve) =>
-    startTransition(async () => {
-      const res = await bulkDeleteAction(selected);
-      setDeletingId(null);
-      if (!res.ok) alert(res.message || "Failed to delete");
-      else {
-        if (res.deleted !== selected.length)
-          alert(`Deleted ${res.deleted} of ${selected.length}.`);
-        setSelected([]);
-        router.refresh();
+      setDeletingId(id);
+      try {
+        const res = await deleteEndpointAction(id);
+        if (!res.ok) {
+          alert(res.message || "Failed to delete");
+          return;
+        }
+        // 画面更新のみを並行トランジションで
+        startTransition(() => router.refresh());
+      } catch (e) {
+        console.error(e);
+        alert("Failed to delete (unexpected error).");
+      } finally {
+        setDeletingId(null);
       }
-      resolve();
-    })
+    },
+    [isPending, deletingId, router, startTransition]
   );
-};
+
+  // 一括削除
+  const bulkDelete = useCallback(
+    async (): Promise<void> => {
+      if (selected.length === 0 || isPending || deletingId) return;
+      if (!confirm(`Delete ${selected.length} endpoints? This cannot be undone.`)) return;
+
+      setDeletingId("__bulk__");
+      try {
+        const res = await bulkDeleteAction(selected);
+        if (!res.ok) {
+          alert(res.message || "Failed to delete");
+          return;
+        }
+        if (res.deleted !== selected.length) {
+          alert(`Deleted ${res.deleted} of ${selected.length}.`);
+        }
+        setSelected([]);
+        startTransition(() => router.refresh());
+      } catch (e) {
+        console.error(e);
+        alert("Failed to delete (unexpected error).");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [selected, isPending, deletingId, router, startTransition]
+  );
 
   return (
     <div className="space-y-8">
@@ -83,7 +98,7 @@ const bulkDelete = async (): Promise<void> => {
           <h1 className="text-3xl font-bold text-gray-900">All API Endpoints</h1>
           <p className="text-gray-600 mt-2">Manage all your API endpoints across plans and groups</p>
         </div>
-        <Button onClick={() => router.push("/creator/endpoints/new")}>
+        <Button onClick={() => router.push("/creator/endpoints/new")} disabled={isPending}>
           <Plus size={18} className="mr-2" />
           New Endpoint
         </Button>
@@ -97,7 +112,12 @@ const bulkDelete = async (): Promise<void> => {
         methodFilterId="endpoint-filter-method"
         statusFilterId="endpoint-filter-status"
         groups={groups}
-        values={{ searchTerm: state.searchTerm, method: state.methodFilter, status: state.statusFilter, group: state.groupFilter }}
+        values={{
+          searchTerm: state.searchTerm,
+          method: state.methodFilter,
+          status: state.statusFilter,
+          group: state.groupFilter,
+        }}
         onChange={{
           search: set.setSearchTerm,
           method: set.setMethodFilter,
@@ -114,7 +134,10 @@ const bulkDelete = async (): Promise<void> => {
         setSelected={setSelected}
         canTest={canTest}
         testingId={testingId}
-        onOpenTest={(id) => { setTestId(id); setTestOpen(true); }}
+        onOpenTest={(id) => {
+          setTestId(id);
+          setTestOpen(true);
+        }}
         onBulkDelete={bulkDelete}
         deletingId={deletingId}
         onDelete={handleDelete}
@@ -122,7 +145,10 @@ const bulkDelete = async (): Promise<void> => {
 
       <TestModal
         isOpen={testOpen}
-        onClose={() => { setTestOpen(false); setTestId(null); }}
+        onClose={() => {
+          setTestOpen(false);
+          setTestId(null);
+        }}
         onRun={runTest}
         endpointId={testId}
       />

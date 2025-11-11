@@ -1,41 +1,59 @@
 // src/app/creator/endpoints/[endpointId]/edit/page.tsx
-import { supabaseAdmin } from "@/lib/supabase/admin";
+"use client";
+
+import { useEffect, useState, use } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { createBrowserClient } from "@/lib/supabase/client";
 import EndpointForm from "../../new/EndpointForm";
 import { Card, CardContent, CardHeader } from "@/app/components/ui/Card";
 
-// ✅ default は同期＆any受け取り（型制約を回避）
-export default function EditEndpointPage(props: any) {
-  return <EditEndpointPageInner {...props} />;
-}
+type ParamsPromise = Promise<{ endpointId: string }>;
 
-// 実処理は async の内側に分離して型を正しく付ける（Server Component）
-async function EditEndpointPageInner({
-  params,
-}: {
-  params: { endpointId: string };
-}) {
-  const endpointId = params.endpointId;
+export default function EditEndpointPage({ params }: { params: ParamsPromise }) {
+  // ✅ Next.js 15: params は Promise。React.use で unwrap
+  const { endpointId } = use(params);
 
-  const [
-    { data: endpoint, error: endpointError },
-    { data: plans },
-    { data: groups },
-  ] = await Promise.all([
-    supabaseAdmin
-      .from("api_endpoints")
-      .select("*")
-      .eq("id", endpointId)
-      .single(),
-    supabaseAdmin.from("api_plans").select("*"),
-    supabaseAdmin.from("api_endpoint_groups").select("*"),
-  ]);
+  const { getToken } = useAuth();
+  const [data, setData] = useState<{
+    endpoint: any;
+    plans: any[];
+    groups: any[];
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  if (endpointError || !endpoint) {
-    console.error(endpointError);
-    return (
-      <div className="p-8 text-red-500 text-center">Endpoint not found</div>
-    );
-  }
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken({ template: "supabase" });
+        const supabase = createBrowserClient(token);
+
+        const [{ data: endpoint, error: endpointError }, { data: plans }, { data: groups }] =
+          await Promise.all([
+            supabase.from("api_endpoints").select("*").eq("id", endpointId).single(),
+            supabase.from("api_plans").select("*"),
+            supabase
+              .from("api_endpoint_groups")
+              .select("*")
+              .order("created_at", { ascending: false }),
+          ]);
+
+        if (endpointError || !endpoint) {
+          setError("Endpoint not found");
+          console.error(endpointError);
+          return;
+        }
+        setData({ endpoint, plans: plans ?? [], groups: groups ?? [] });
+      } catch (e) {
+        console.error(e);
+        setError("Failed to load endpoint data");
+      }
+    })();
+  }, [getToken, endpointId]); // ✅ 依存は unwrap した endpointId に
+
+  if (error) return <div className="p-8 text-red-500 text-center">{error}</div>;
+  if (!data) return <div className="p-8 text-center">Loading...</div>;
+
+  const { endpoint, plans, groups } = data;
 
   return (
     <div className="p-6 space-y-6">
@@ -47,10 +65,9 @@ async function EditEndpointPageInner({
           <EndpointForm
             mode="edit"
             presetGroupId={endpoint.group_id ?? ""}
-            plans={plans ?? []}
-            availableGroups={groups ?? []}
+            plans={plans}
+            availableGroups={groups}
             initialData={endpoint}
-            // onCancel は渡さない（Client の EndpointForm 側で router.push を実施）
           />
         </CardContent>
       </Card>

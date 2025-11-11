@@ -1,20 +1,20 @@
+// src/app/creator/endpoints/new/form/EndpointGroupSelector.tsx
 "use client";
 
-import { Button } from "@/app/components/ui/Button";
 import { Field, Select } from "@/app/creator/endpoints/new/form/Field";
 
+type Group = { id: string; group_name?: string; name?: string };
+
 type Props = {
-  groups: any[];
+  groups: Group[];
   groupId?: string;
   setGroupId: (v: string) => void;
-
-  // エラーメッセージは string | string[] どちらでもOKに
   errors?: Record<string, string | string[] | undefined>;
   pending?: boolean;
 
-  // 新規グループ作成ボタンを出すかどうか（編集では false 推奨）
-  showNewGroupButton?: boolean;
-  onOpenNewGroup?: () => void;
+  /** 右側の +New Group ボタンは使わない（編集寄せ） */
+  showNewGroupButton?: false;
+  onOpenNewGroup?: never;
 };
 
 export default function EndpointGroupSelector({
@@ -23,8 +23,6 @@ export default function EndpointGroupSelector({
   setGroupId,
   errors = {},
   pending = false,
-  showNewGroupButton = false,
-  onOpenNewGroup,
 }: Props) {
   const groupErr = errors.groupId;
   const errText = Array.isArray(groupErr) ? groupErr.join(", ") : groupErr;
@@ -32,33 +30,31 @@ export default function EndpointGroupSelector({
   return (
     <section className="space-y-2">
       <Field id="group-select" label="Endpoint Group *" error={errText}>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Select
             id="group-select"
             title="Endpoint Group"
             value={groupId ?? ""}
             onChange={(e) => setGroupId(e.target.value)}
             disabled={pending}
-            className={errText ? "border-red-300" : undefined}
+            className={[
+              // 編集画面に寄せて“コンパクト化”
+              "h-9 text-sm w-full rounded-md border px-3",
+              errText ? "border-red-300" : "border-input",
+            ].join(" ")}
           >
-            <option value="">Select a group...</option>
-            {(groups ?? []).map((g: any) => (
+            {/* プレースホルダは選択不可 & 非表示にして見た目スッキリ */}
+            <option value="" disabled hidden>
+              Select a group...
+            </option>
+
+            {(groups ?? []).map((g) => (
               <option key={g.id} value={g.id}>
-                {g.name ?? g.group_name ?? `Group ${g.id}`}
+                {g.group_name ?? g.name ?? `Group ${g.id}`}
               </option>
             ))}
           </Select>
-
-          {showNewGroupButton && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onOpenNewGroup}
-              disabled={pending}
-            >
-              + New Group
-            </Button>
-          )}
+          {/* 編集寄せのため「+ New Group」ボタンは出さない */}
         </div>
       </Field>
     </section>

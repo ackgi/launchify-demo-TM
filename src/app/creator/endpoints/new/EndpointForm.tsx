@@ -95,14 +95,12 @@ export default function EndpointForm({
         <CardContent className="space-y-8">
           {/* Plan / Group */}
           <EndpointGroupSelector
-            groups={availableGroups} // もしくは planGroups を使ってもOK
+            groups={availableGroups /* または planGroups */}
             groupId={formData.groupId ?? ""}
             setGroupId={(v) => set("groupId", v)}
             errors={errors}
             pending={pending}
-            // 新規時だけ新規作成ボタンを出したいなら:
-            showNewGroupButton={mode === "new"}
-            onOpenNewGroup={() => setShowNewGroupModal(true)}
+            /* showNewGroupButton / onOpenNewGroup は型的に受け取らない想定 */
           />
 
           {/* Templates（編集でもテンプレから上書きしたいケースがあるため表示のまま） */}
@@ -211,10 +209,10 @@ export default function EndpointForm({
                     aria-label="Set as Primary Endpoint"
                     disabled={pending}
                   />
-                  <Star
-                    size={20}
-                    className={formData.isPrimary ? "text-yellow-500 fill-current" : "text-gray-400"}
-                  />
+                <Star
+                  size={20}
+                  className={formData.isPrimary ? "text-yellow-500 fill-current" : "text-gray-400"}
+                />
                   <span className="text-sm font-medium">Set as Primary Endpoint</span>
                 </label>
               </div>
@@ -248,7 +246,6 @@ export default function EndpointForm({
 
             {/* ===== Actions: モードで分岐 ===== */}
             {mode === "edit" ? (
-              // 編集：Cancel｜Save の2つのみ
               <div className="flex justify-end gap-3 pt-6 border-t">
                 <Button
                   variant="outline"
@@ -262,10 +259,9 @@ export default function EndpointForm({
                 </Button>
               </div>
             ) : (
-              // 新規：不要な2ボタンを削除し、1ボタンのみ（文言も「Create Endopoint」に変更）
               <div className="flex justify-end gap-3 pt-6 border-t">
                 <Button onClick={() => save("save")} disabled={pending}>
-                  Create Endopoint
+                  Create Endpoint
                 </Button>
               </div>
             )}

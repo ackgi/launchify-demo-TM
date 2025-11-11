@@ -1,4 +1,3 @@
-// src/app/creator/groups/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -10,6 +9,7 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/app/components/ui/Button";
 import { Card, CardContent } from "@/app/components/ui/Card";
 import Badge from "@/app/components/ui/Badge";
+import { deleteGroupAction } from "./actions";
 
 type GroupRow = {
   id: string;
@@ -31,7 +31,6 @@ function isGroupRowArray(v: unknown): v is GroupRow[] {
 }
 
 /** Statusピルを描画（VerificationBadge非依存） */
-// 置き換え: Groups/page.tsx 内の renderGroupStatusPill
 function renderGroupStatusPill(s: string | null | undefined) {
   const v = (s ?? "unknown").toLowerCase();
 
@@ -49,7 +48,7 @@ function renderGroupStatusPill(s: string | null | undefined) {
       break;
     case "deprecated":
     case "disabled":
-      variant = "error"; // ← ここを danger ではなく error に
+      variant = "error";
       break;
     case "draft":
     default:
@@ -64,7 +63,6 @@ function renderGroupStatusPill(s: string | null | undefined) {
   );
 }
 
-
 export default function GroupsIndexPage() {
   const router = useRouter();
   const { getToken, isLoaded } = useAuth();
@@ -76,7 +74,7 @@ export default function GroupsIndexPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [q, setQ] = useState("");
 
-  // Clerk JWT を添付した Supabase クライアント作成
+  // Clerk JWT を添付した Supabase クライアント作成（取得用のみ）
   useEffect(() => {
     if (!isLoaded) return;
     (async () => {
@@ -133,27 +131,40 @@ export default function GroupsIndexPage() {
     };
   }, [supabase, user?.id]);
 
-  // 行削除（楽観的UI）
+  // 行削除（サーバーアクション経由／非カスケード：子は残す＝unlink）
   const handleDelete = async (g: GroupRow) => {
-    const ok = confirm(`Delete group "${g.group_name ?? "(untitled)"}"?`);
-    if (!ok || !supabase) return;
+    const ok = confirm(
+      `Delete group "${g.group_name ?? "(untitled)"}"?\n` +
+        `Endpoints linked to this group will be kept and become "unassigned".`
+    );
+    if (!ok) return;
 
     const snapshot = rows;
     setDeletingId(g.id);
     setRows((prev) => prev.filter((x) => x.id !== g.id));
 
     try {
-      const { error } = await supabase
-        .from("api_endpoint_groups")
-        .delete()
-        .eq("id", g.id);
+      const res = await deleteGroupAction(g.id);
 
-      if (error) {
-        console.error("❌ delete group:", error);
-        alert(`Failed to delete group: ${error.message ?? "unknown error"}`);
+      if (!res.ok) {
+        console.error("❌ delete group (server):", res);
+        alert(
+          `Failed to delete group: ${
+            res.message ??
+            (res.code === "FK_REFERENCES_REMAIN"
+              ? "The group is still referenced by endpoints."
+              : "unknown error")
+          }`
+        );
         setRows(snapshot);
+        return;
       }
-    } catch (e) {
+
+      // 任意: unlink 件数をトースト等で表示したければここで
+      if (res.unlinked && res.unlinked > 0) {
+        console.info(`Unlinked ${res.unlinked} endpoints from this group.`);
+      }
+    } catch (e: any) {
       console.error("🔥 delete group (exception):", e);
       alert("Unexpected error while deleting group.");
       setRows(snapshot);
@@ -245,7 +256,7 @@ export default function GroupsIndexPage() {
 
                       <td className="py-4 px-6">{g.plan_id ?? "—"}</td>
 
-                      {/* ✅ 自前のピル表示 */}
+                      {/* 自前のピル表示 */}
                       <td className="py-4 px-6">{renderGroupStatusPill(g.status)}</td>
 
                       <td className="py-4 px-6">{g.auth_type ?? "none"}</td>

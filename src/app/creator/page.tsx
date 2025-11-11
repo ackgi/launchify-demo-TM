@@ -154,6 +154,38 @@ export default function CreatorDashboard() {
     }
   };
 
+  const handleDeletePlan = async (plan: PlanRow) => {
+    const ok = confirm(`Delete plan "${plan.plan_name ?? ""}"?`);
+    if (!ok || !supabase) return;
+
+    const snapshot = plans;
+    setPlans((prev) => prev.filter((pl) => pl.id !== plan.id));
+
+    const { error } = await supabase.from("api_plans").delete().eq("id", plan.id);
+
+    if (error) {
+      // ロールバック
+      setPlans(snapshot);
+      setErrorMsg("Failed to delete plan.");
+    }
+  };
+
+  const handleDeleteProduct = async (product: ProductRow) => {
+    const ok = confirm(`Delete product "${product.name ?? ""}"?`);
+    if (!ok || !supabase) return;
+
+    const snapshot = products;
+    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+
+    const { error } = await supabase.from("api_products").delete().eq("id", product.id);
+
+    if (error) {
+      // ロールバック
+      setProducts(snapshot);
+      setErrorMsg("Failed to delete product.");
+    }
+  };
+
   /* ------------------------------------------------
    * Helpers
    * ------------------------------------------------ */
@@ -261,7 +293,12 @@ export default function CreatorDashboard() {
                         >
                           <Edit size={16} />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteProduct(p)}
+                        >
                           <Trash2 size={16} />
                         </Button>
                       </td>
@@ -337,7 +374,12 @@ export default function CreatorDashboard() {
                           >
                             <Edit size={16} />
                           </Button>
-                          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeletePlan(pl)}
+                          >
                             <Trash2 size={16} />
                           </Button>
                         </td>

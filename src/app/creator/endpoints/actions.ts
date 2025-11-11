@@ -4,58 +4,70 @@
 import { auth } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export async function deleteEndpointAction(id: string) {
-  const { userId } = await auth();
-  if (!userId) return { ok: false, message: "Unauthorized" };
+// ✅ 型を広げる：成功でも deleted を持てるように
+type ActionResult =
+  | { ok: true; deleted?: number }
+  | { ok: false; message: string; code?: string; deleted?: number };
 
-  // Clerk → profiles.id を取得
-  const { data: profile, error: eProfile } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("clerk_user_id", userId)
-    .single();
+const looksLikeUuid = (s: string) => /^[0-9a-fA-F-]{16,}$/.test(s);
 
-  if (eProfile || !profile) return { ok: false, message: "Profile not found" };
+export async function deleteEndpointAction(id: string): Promise<ActionResult> {
+  try {
+    const { userId } = await auth();
+    if (!userId) return { ok: false, message: "Unauthorized" };
+    if (!id || !looksLikeUuid(id)) return { ok: false, message: "Invalid id" };
 
-  // 所有権チェック
-  const { count, error: eCheck } = await supabaseAdmin
-    .from("api_endpoints")
-    .select("id", { count: "exact", head: true })
-    .eq("id", id)
-    .eq("created_by", profile.id);
+    const { data, error } = await supabaseAdmin
+      .from("api_endpoints")
+      .delete()
+      .eq("id", id)
+      .eq("created_by", userId) // Clerk userId と比較
+      .select("id")
+      .maybeSingle();
 
-  if (eCheck) return { ok: false, message: eCheck.message };
-  if (!count) return { ok: false, message: "Not owner or not found" };
-
-  const { error: eDel } = await supabaseAdmin
-    .from("api_endpoints")
-    .delete()
-    .eq("id", id);
-
-  if (eDel) return { ok: false, message: eDel.message };
-  return { ok: true };
+    if (error) {
+      return { ok: false, message: error.message, code: (error as any).code };
+    }
+    if (!data) {
+      return { ok: false, message: "Not owner or not found" };
+    }
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, message: e?.message ?? "Unexpected error" };
+  }
 }
 
-export async function bulkDeleteAction(ids: string[]) {
-  const { userId } = await auth();
-  if (!userId) return { ok: false, message: "Unauthorized" };
+export async function bulkDeleteAction(ids: string[]): Promise<ActionResult> {
+  try {
+    const { userId } = await auth();
+    if (!userId) return { ok: false, message: "Unauthorized", deleted: 0 };
 
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("clerk_user_id", userId)
-    .single();
-  if (!profile) return { ok: false, message: "Profile not found" };
+    const validIds = (ids ?? []).filter((x) => x && looksLikeUuid(x));
+    if (validIds.length === 0) return { ok: false, message: "No valid ids", deleted: 0 };
 
-  // 自分のものだけ削除
-  const { data, error } = await supabaseAdmin
-    .from("api_endpoints")
-    .delete()
-    .in("id", ids)
-    .eq("created_by", profile.id)
-    .select("id");
+    const { data, error } = await supabaseAdmin
+      .from("api_endpoints")
+      .delete()
+      .in("id", validIds)
+      .eq("created_by", userId)
+      .select("id"); // returning 複数
 
-  if (error) return { ok: false, message: error.message };
-  const deleted = Array.isArray(data) ? data.length : 0;
-  return { ok: true, deleted };
+    if (error) {
+      return {
+        ok: false,
+        message: error.message,
+        code: (error as any).code,
+        deleted: 0,
+      };
+    }
+
+    const deleted = Array.isArray(data) ? data.length : 0;
+    if (deleted === 0) {
+      return { ok: false, message: "Not owner or not found", deleted: 0 };
+    }
+    // ✅ ok: true でも deleted を返せる
+    return { ok: true, deleted };
+  } catch (e: any) {
+    return { ok: false, message: e?.message ?? "Unexpected error", deleted: 0 };
+  }
 }
