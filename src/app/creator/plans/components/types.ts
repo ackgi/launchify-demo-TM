@@ -10,7 +10,10 @@ export type PlanStatus =
   | "deprecated"
   | "disabled";
 
+// ★ productId を追加（optional 推奨）
 export interface PlanFormData {
+  productId?: string;
+
   name: string;
   templateKey: "free" | "pro" | "enterprise" | null;
   billingType: "subscription" | "prepaid" | "metered";
